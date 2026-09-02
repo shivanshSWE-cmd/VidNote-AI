@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Youtube, Instagram, Clock, User, Sparkles, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, Youtube, Instagram, Clock, User, FileSpreadsheet, Loader2 } from 'lucide-react';
 
 interface ExportToolbarProps {
   title: string;
@@ -72,12 +72,12 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+    <div className="bg-[#131B2E] border border-[#232F48] rounded-2xl p-6 shadow-xl space-y-4">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        {/* Video Metadata Card */}
+        {/* Metadata Card */}
         <div className="flex items-start sm:items-center gap-4">
           {thumbnail ? (
-            <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-slate-950 shrink-0 border border-slate-800">
+            <div className="relative w-24 h-16 rounded-xl overflow-hidden bg-[#0B0F17] shrink-0 border border-[#232F48]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={thumbnail}
@@ -86,47 +86,47 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
               />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
           )}
 
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 flex items-center gap-1 border border-slate-700">
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-[#0B0F17] flex items-center gap-1 border border-[#232F48]">
                 {platform.toLowerCase() === 'youtube' ? (
                   <>
-                    <Youtube className="w-3 h-3 text-red-500" />
-                    <span>YouTube</span>
+                    <Youtube className="w-3 h-3 text-[#EF4444]" />
+                    <span className="text-[#EF4444]">YouTube</span>
                   </>
                 ) : (
                   <>
-                    <Instagram className="w-3 h-3 text-pink-500" />
-                    <span>Instagram</span>
+                    <Instagram className="w-3 h-3 text-[#E1306C]" />
+                    <span className="text-[#E1306C]">Instagram</span>
                   </>
                 )}
               </span>
-              <span className="text-slate-500 text-xs">•</span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
+              <span className="text-[#94A3B8] text-xs">•</span>
+              <span className="text-xs text-[#94A3B8] flex items-center gap-1">
                 <Clock className="w-3 h-3" /> {durationStr}
               </span>
-              <span className="text-slate-500 text-xs">•</span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
+              <span className="text-[#94A3B8] text-xs">•</span>
+              <span className="text-xs text-[#94A3B8] flex items-center gap-1">
                 <User className="w-3 h-3" /> {uploader}
               </span>
             </div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-100 line-clamp-1">
+            <h2 className="text-base sm:text-lg font-bold text-[#F8FAFC] line-clamp-1">
               {title}
             </h2>
           </div>
         </div>
 
-        {/* Download Word Document Action */}
+        {/* Primary Conversion CTA: Emerald Green */}
         <div className="shrink-0 w-full md:w-auto">
           <button
             onClick={handleDownloadDocx}
             disabled={downloading}
-            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/20 transition-all transform active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all transform active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {downloading ? (
               <>
@@ -144,7 +144,7 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
       </div>
 
       {error && (
-        <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+        <div className="text-xs text-[#DC2626] bg-[#DC2626]/10 border border-[#DC2626]/20 rounded-xl p-3">
           {error}
         </div>
       )}

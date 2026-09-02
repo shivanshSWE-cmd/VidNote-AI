@@ -3,8 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-base: #0B0F17;
+    --surface: #131B2E;
+    --border-card: #232F48;
+    --divider: #1E293B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --accent-blue: #3B82F6;
+    --accent-blue-hover: #2563EB;
+    --action-green: #10B981;
+    --action-green-hover: #059669;
+  }
+
+  .light {
+    --bg-base: #F8FAFC;
+    --surface: #FFFFFF;
+    --border-card: #E2E8F0;
+    --divider: #CBD5E1;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --accent-blue: #1D4ED8;
+    --accent-blue-hover: #1E40AF;
+    --action-green: #059669;
+    --action-green-hover: #047857;
+  }
+
   body {
-    @apply bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-teal-500 selection:text-white;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    @apply antialiased min-h-screen selection:bg-blue-600 selection:text-white;
   }
 }
 
@@ -15,14 +43,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--bg-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--border-card);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--text-secondary);
 }
