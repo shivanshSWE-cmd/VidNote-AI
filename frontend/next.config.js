@@ -1,22 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  output: 'export',
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'img.youtube.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'i.ytimg.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.cdninstagram.com',
-      },
-    ],
+    unoptimized: true,
   },
+  basePath: process.env.NODE_ENV === 'production' ? '/VidNote-AI' : '',
 };
 
 module.exports = nextConfig;
