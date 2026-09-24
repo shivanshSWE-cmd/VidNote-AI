@@ -5,17 +5,25 @@ env/
 venv/
 __pycache__/
 *.pyc
+*.pyo
 
-# Next.js build
+# Ephemeral frames & cache
+backend/static/frames/*
+!backend/static/frames/.gitkeep
+backend/tests/test_out/
+backend/tests/test_m3u8/
+backend/tests/test_fast_extract/
+backend/tests/test_m3u8_fast/
+backend/tests/test_fast_opts/
+
+# Next.js build & TS cache
 frontend/.next/
 frontend/out/
 frontend/build/
 *.tsbuildinfo
 
-# Temp assets & frame cache
+# Temp audio / downloads
 backend/temp/
-backend/static/frames/*
-!backend/static/frames/.gitkeep
 *.mp3
 *.m4a
 *.wav
