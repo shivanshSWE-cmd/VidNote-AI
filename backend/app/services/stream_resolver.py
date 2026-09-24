@@ -1,6 +1,5 @@
-import time
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 from fastapi import HTTPException
 import yt_dlp
 
@@ -8,30 +7,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-# In-memory short-term stream cache: url -> (timestamp, stream_info)
-_STREAM_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
-CACHE_TTL_SECONDS = 600  # 10 minute TTL for cached stream URLs
-
 
 def resolve_video_stream(url: str) -> Dict[str, Any]:
     """
-    Extracts raw direct HLS stream manifest URL and video metadata from YouTube using yt-dlp.
-    Prefers 720p HLS streams for 4x faster network decoding and frame sampling.
-    Includes in-memory cache to skip yt-dlp latency on repeated requests.
+    Extracts raw direct stream manifest URL and video metadata from YouTube using yt-dlp.
+    Prioritizes HLS m3u8_native manifests for reliable non-throttled FFmpeg streaming.
+    Does NOT download video binary to disk.
+    
+    Raises HTTPException 400 or 422 if video is private, live stream, age-restricted, or inaccessible.
     """
-    now = time.time()
-    clean_url = url.strip()
-
-    # Check cache first
-    if clean_url in _STREAM_CACHE:
-        cached_time, cached_info = _STREAM_CACHE[clean_url]
-        if now - cached_time < CACHE_TTL_SECONDS:
-            logger.info(f"Returning cached stream info for URL: {clean_url}")
-            return cached_info
-
-    # Format string: Prefer 720p HLS streams for ultra-fast decoding speed
     ydl_opts = {
-        'format': 'bestvideo[height<=720][protocol=m3u8_native]/best[height<=720][protocol=m3u8_native]/best[protocol=m3u8_native]/best[height<=1080]/best',
+        'format': 'best[protocol=m3u8_native]/bestvideo[protocol=m3u8_native]/best[height<=1080][ext=mp4]/bestvideo[height<=1080]/best',
         'quiet': True,
         'no_warnings': True,
         'extract_flat': False,
@@ -48,10 +34,10 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(clean_url, download=False)
+            info_dict = ydl.extract_info(url, download=False)
     except yt_dlp.utils.DownloadError as err:
         error_msg = str(err)
-        logger.error(f"yt-dlp extraction failed for URL '{clean_url}': {error_msg}")
+        logger.error(f"yt-dlp extraction failed for URL '{url}': {error_msg}")
 
         if "Private video" in error_msg:
             raise HTTPException(status_code=422, detail="This YouTube video is private.") from err
@@ -71,7 +57,7 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
                 detail=f"Could not extract video stream: {error_msg}"
             ) from err
     except Exception as err:
-        logger.error(f"Unexpected error resolving video stream for URL '{clean_url}': {str(err)}")
+        logger.error(f"Unexpected error resolving video stream for URL '{url}': {str(err)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while resolving video stream: {str(err)}"
@@ -88,7 +74,7 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
             detail="Live streams are not supported until the broadcast finishes and duration is available."
         )
 
-    # Prefer HLS m3u8_native manifest URL (avoids YouTube GET throttling)
+    # 1. Prefer HLS m3u8_native manifest URL (avoids YouTube GET throttling)
     stream_url = None
     formats = info_dict.get("formats", [])
     for f in reversed(formats):
@@ -96,6 +82,7 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
             stream_url = f["url"]
             break
 
+    # 2. Fall back to top-level info_dict url or any valid video stream URL
     if not stream_url:
         stream_url = info_dict.get("url")
 
@@ -117,7 +104,7 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
     uploader = info_dict.get("uploader", "Unknown Uploader")
     thumbnail = info_dict.get("thumbnail", "")
 
-    result = {
+    return {
         "video_id": video_id,
         "title": title,
         "duration_seconds": duration,
@@ -126,7 +113,3 @@ def resolve_video_stream(url: str) -> Dict[str, Any]:
         "thumbnail": thumbnail,
         "user_agent": DEFAULT_USER_AGENT
     }
-
-    # Store in cache
-    _STREAM_CACHE[clean_url] = (now, result)
-    return result

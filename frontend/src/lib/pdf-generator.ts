@@ -32,7 +32,7 @@ async function loadImageAsBase64(url: string): Promise<string> {
         reject(err);
       }
     };
-    img.onerror = () => {
+    img.onerror = (err) => {
       reject(new Error(`Failed to load image from URL: ${url}`));
     };
     img.src = url;
@@ -40,7 +40,7 @@ async function loadImageAsBase64(url: string): Promise<string> {
 }
 
 /**
- * Generates an exportable PDF document entirely client-side using jsPDF with parallel image preloading.
+ * Generates an exportable PDF document entirely client-side using jsPDF.
  */
 export async function generatePdf({
   videoTitle,
@@ -51,26 +51,6 @@ export async function generatePdf({
   if (!frames || frames.length === 0) {
     throw new Error('No frames selected for PDF generation.');
   }
-
-  // 1. Parallel Preload ALL Selected Images Simultaneously (Cuts PDF compilation time by 90%)
-  const imageMap = new Map<number, string>();
-  const preloadedImages = await Promise.all(
-    frames.map(async (frame) => {
-      try {
-        const base64 = await loadImageAsBase64(frame.url);
-        return { frameId: frame.frame_id, base64 };
-      } catch (err) {
-        console.error(`Failed preloading frame ${frame.frame_id}:`, err);
-        return { frameId: frame.frame_id, base64: null };
-      }
-    })
-  );
-
-  preloadedImages.forEach((item) => {
-    if (item.base64) {
-      imageMap.set(item.frameId, item.base64);
-    }
-  });
 
   // Create A4 Landscape PDF (297mm x 210mm)
   const doc = new jsPDF({
@@ -104,22 +84,22 @@ export async function generatePdf({
       // Draw Top Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.setTextColor(30, 41, 59);
+      doc.setTextColor(30, 41, 59); // Slate-800
       const truncatedTitle = videoTitle.length > 70 ? `${videoTitle.substring(0, 67)}...` : videoTitle;
       doc.text(truncatedTitle, margin, 14);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
+      doc.setTextColor(100, 116, 139); // Slate-500
       doc.text(`Source: ${videoUrl}  |  Date: ${generationDate}`, margin, 19);
 
       // Header Divider Line
-      doc.setDrawColor(226, 232, 240);
+      doc.setDrawColor(226, 232, 240); // Slate-200
       doc.setLineWidth(0.4);
       doc.line(margin, 22, pageWidth - margin, 22);
 
       // Render 16:9 Image Centered
-      const availableHeight = pageHeight - 45;
+      const availableHeight = pageHeight - 45; // Height reserved for headers/footers
       let imgWidth = contentWidth;
       let imgHeight = (imgWidth * 9) / 16;
 
@@ -131,12 +111,16 @@ export async function generatePdf({
       const imgX = margin + (contentWidth - imgWidth) / 2;
       const imgY = 26 + (availableHeight - imgHeight) / 2;
 
-      const base64Data = imageMap.get(frame.frame_id);
-      if (base64Data) {
+      try {
+        const base64Data = await loadImageAsBase64(frame.url);
         doc.addImage(base64Data, 'JPEG', imgX, imgY, imgWidth, imgHeight);
-        doc.setDrawColor(203, 213, 225);
+
+        // Subtle Image Border
+        doc.setDrawColor(203, 213, 225); // Slate-300
         doc.setLineWidth(0.3);
         doc.rect(imgX, imgY, imgWidth, imgHeight);
+      } catch (err) {
+        console.error(`Error loading frame ${frame.frame_id}:`, err);
       }
 
       // Draw Footer Divider Line
@@ -147,19 +131,20 @@ export async function generatePdf({
       // Draw Footer Timecode & Page Number
       doc.setFont('courier', 'bold');
       doc.setFontSize(10);
-      doc.setTextColor(79, 70, 229);
+      doc.setTextColor(79, 70, 229); // Indigo-600
       doc.text(`Timestamp: [${frame.timestamp_formatted}]`, margin, pageHeight - 8);
 
       doc.setFont('helvetica', 'medium');
       doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(148, 163, 184); // Slate-400
       doc.text(`Page ${i + 1} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
     }
   } else {
-    // --- 2 FRAMES PER PAGE LAYOUT ---
+    // --- 2 FRAMES PER PAGE LAYOUT (Side-by-Side or Portrait Stacked) ---
+    // In landscape 2-up: 2 columns side-by-side
     const totalPages = Math.ceil(frames.length / 2);
-    const colWidth = (contentWidth - 10) / 2;
-    const imgHeight = (colWidth * 9) / 16;
+    const colWidth = (contentWidth - 10) / 2; // 131.5 mm each column
+    const imgHeight = (colWidth * 9) / 16;     // ~74 mm
 
     for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
       if (pageIdx > 0) {
@@ -190,12 +175,15 @@ export async function generatePdf({
         const colX = margin + c * (colWidth + 10);
         const imgY = 40;
 
-        const base64Data = imageMap.get(frame.frame_id);
-        if (base64Data) {
+        try {
+          const base64Data = await loadImageAsBase64(frame.url);
           doc.addImage(base64Data, 'JPEG', colX, imgY, colWidth, imgHeight);
+
           doc.setDrawColor(203, 213, 225);
           doc.setLineWidth(0.3);
           doc.rect(colX, imgY, colWidth, imgHeight);
+        } catch (err) {
+          console.error(`Error loading frame ${frame.frame_id}:`, err);
         }
 
         // Timecode badge below image

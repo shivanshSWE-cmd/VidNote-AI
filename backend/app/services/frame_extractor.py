@@ -24,8 +24,8 @@ async def extract_frames_from_stream(
     user_agent: str = DEFAULT_USER_AGENT
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """
-    Executes non-blocking multi-threaded FFmpeg async subprocess to sample frames from a stream.
-    Optimized with fastseek, multi-threading, 720p scaling, and low-latency buffer flags.
+    Executes non-blocking FFmpeg async subprocess to sample frames from a direct stream URL.
+    Saves output JPEGs under /static/frames/{job_id}/.
     
     Returns (job_id, frames_metadata_list).
     """
@@ -38,25 +38,30 @@ async def extract_frames_from_stream(
     output_pattern = str(job_dir / "frame_%04d.jpg")
     ffmpeg_bin = get_ffmpeg_binary()
 
-    # Dynamic timeout calculation
+    # Calculate dynamic execution timeout based on estimated frame count (min 300s, max 900s)
     estimated_frames = (duration_seconds // interval_seconds) if (duration_seconds and interval_seconds) else 30
-    timeout_seconds = max(180, min(900, estimated_frames * 3 + 120))
+    timeout_seconds = max(FFMPEG_TIMEOUT_SECONDS, min(900, estimated_frames * 4 + 180))
 
     headers_str = f"User-Agent: {user_agent}\r\nReferer: https://www.youtube.com/\r\n"
 
-    # Ultra-Performance FFmpeg Flags:
-    # -threads 0: Uses all available CPU cores for parallel decoding
-    # -fflags +nobuffer+fastseek -flags low_delay: Cuts HTTP network seek latency
-    # -vf fps=1/N,scale=1280:-2: Downscales to 720p HD for 4x faster JPEG disk writing
-    # -q:v 3: Fast, high-quality JPEG output
+    # FFmpeg ultra-fast performance flags:
+    # -probesize 32M & -analyzeduration 0 skips initial stream buffering delay
+    # -threads 0 enables all available CPU cores for decoding
+    # -an -sn disables audio and subtitle decoding completely to save CPU and bandwidth
+    # -reconnect flags prevent network drops on remote YouTube streams
+    # -ss placement before -i enables fast container keyframe seeking
+    # -vf fps=1/N sets frame sampling rate
+    # -q:v 3 balances fast encoding speed with crisp visual quality
     cmd = [
         ffmpeg_bin,
         "-hide_banner",
         "-loglevel", "error",
         "-y",
+        "-probesize", "32M",
+        "-analyzeduration", "0",
         "-threads", "0",
-        "-fflags", "+nobuffer+fastseek",
-        "-flags", "low_delay",
+        "-an",
+        "-sn",
         "-reconnect", "1",
         "-reconnect_at_eof", "1",
         "-reconnect_streamed", "1",
@@ -65,13 +70,13 @@ async def extract_frames_from_stream(
         "-user_agent", user_agent,
         "-ss", "00:00:00",
         "-i", stream_url,
-        "-vf", f"fps=1/{interval_seconds},scale=1280:-2",
+        "-vf", f"fps=1/{interval_seconds}",
         "-q:v", "3",
         "-f", "image2",
         output_pattern
     ]
 
-    logger.info(f"Executing Fast FFmpeg extraction job '{job_id}' (threads=0, scale=720p, interval={interval_seconds}s)")
+    logger.info(f"Executing ultra-fast FFmpeg frame extraction job '{job_id}' (Timeout: {timeout_seconds}s, interval: {interval_seconds}s)")
 
     try:
         process = await asyncio.create_subprocess_exec(
