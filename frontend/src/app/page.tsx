@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ExtractResponse, FrameMetadata, PdfLayoutMode } from '@/types';
 import { extractFrames, checkHealth, getApiBaseUrl } from '@/lib/api';
+import { extractFramesClientSide } from '@/lib/client-extractor';
 import { generatePdf } from '@/lib/pdf-generator';
 import UrlInput from '@/components/UrlInput';
 import SkeletonGrid from '@/components/SkeletonGrid';
@@ -10,7 +11,7 @@ import FrameGrid from '@/components/FrameGrid';
 import LightboxModal from '@/components/LightboxModal';
 import PdfExportBar from '@/components/PdfExportBar';
 import BackendConfigModal from '@/components/BackendConfigModal';
-import { Layers, Sparkles, Server, Settings2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Layers, Sparkles, Server, Settings2, CheckCircle2, AlertCircle, Info, Zap } from 'lucide-react';
 
 export default function HomePage() {
   const [extractData, setExtractData] = useState<ExtractResponse | null>(null);
@@ -20,6 +21,7 @@ export default function HomePage() {
 
   // Backend connection status & modal
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
+  const [extractionMode, setExtractionMode] = useState<'backend' | 'browser' | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
 
   // Selection & Lightbox State
@@ -50,20 +52,32 @@ export default function HomePage() {
     setSubmittedUrl(url);
 
     try {
-      const data = await extractFrames(url, intervalSeconds);
+      let data: ExtractResponse;
+
+      if (backendStatus === 'connected') {
+        try {
+          data = await extractFrames(url, intervalSeconds);
+          setExtractionMode('backend');
+        } catch (backendErr: any) {
+          console.warn('Backend extraction failed, switching to browser mode:', backendErr);
+          data = await extractFramesClientSide(url, intervalSeconds);
+          setExtractionMode('browser');
+        }
+      } else {
+        // Direct Client-Side Browser Extraction (No backend required)
+        data = await extractFramesClientSide(url, intervalSeconds);
+        setExtractionMode('browser');
+      }
+
       setExtractData(data);
       // Select all extracted frames by default for immediate convenience
       const allIds = new Set(data.frames.map((f) => f.frame_id));
       setSelectedIds(allIds);
       setLastSelectedId(null);
-      setBackendStatus('connected');
     } catch (err: any) {
       console.error('Extraction error:', err);
       setError(err.message || 'An error occurred while processing the video.');
       setExtractData(null);
-      if (err.message?.includes('Cannot connect')) {
-        setBackendStatus('offline');
-      }
     } finally {
       setIsLoading(false);
     }
@@ -182,18 +196,14 @@ export default function HomePage() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                 backendStatus === 'connected'
                   ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/40 hover:bg-emerald-900/40'
-                  : backendStatus === 'offline'
-                  ? 'bg-amber-950/40 text-amber-400 border-amber-800/40 hover:bg-amber-900/40'
-                  : 'bg-slate-900 text-slate-400 border-slate-800'
+                  : 'bg-indigo-950/40 text-indigo-300 border-indigo-800/40 hover:bg-indigo-900/40'
               }`}
             >
               <Server className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
                 {backendStatus === 'connected'
-                  ? 'Backend Connected'
-                  : backendStatus === 'offline'
-                  ? 'Backend Offline'
-                  : 'Checking Backend...'}
+                  ? 'FastAPI Engine: Active'
+                  : 'Mode: Browser Direct'}
               </span>
               <Settings2 className="w-3 h-3 ml-0.5 opacity-70" />
             </button>
@@ -213,29 +223,31 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Offline Warning Banner */}
-        {backendStatus === 'offline' && (
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex items-center justify-between p-3.5 bg-amber-950/30 border border-amber-800/40 rounded-xl text-xs text-amber-300">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Backend service is not detected at <code>{getApiBaseUrl()}</code>. Ensure FastAPI is running locally or configure remote backend.</span>
-              </div>
-              <button
-                onClick={() => setIsConfigOpen(true)}
-                className="underline hover:text-white font-semibold ml-2 shrink-0"
-              >
-                Configure
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* URL Form & Control Panel */}
         <UrlInput onSubmit={handleExtractSubmit} isLoading={isLoading} error={error} />
 
         {/* Loading Shimmer State */}
         {isLoading && <SkeletonGrid />}
+
+        {/* Extraction Mode Info Pill */}
+        {!isLoading && extractData && extractionMode === 'browser' && (
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-indigo-950/30 border border-indigo-800/40 rounded-xl text-xs text-indigo-300">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>
+                  <strong>Browser Keyframe Mode:</strong> Key visual moments extracted directly in your browser. (For minute-by-minute FFmpeg stream extraction, start the backend locally or connect via Settings).
+                </span>
+              </div>
+              <button
+                onClick={() => setIsConfigOpen(true)}
+                className="underline hover:text-white font-semibold text-right shrink-0"
+              >
+                Backend Settings
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Extracted Frame Gallery */}
         {!isLoading && extractData && (

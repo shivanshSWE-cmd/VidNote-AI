@@ -9,9 +9,25 @@ interface GeneratePdfParams {
 }
 
 /**
- * Loads an HTTP image URL into an HTMLImageElement and converts it to a Base64 Data URL.
+ * Loads an HTTP image URL into a Base64 Data URL using fetch Blob or HTMLImageElement.
  */
 async function loadImageAsBase64(url: string): Promise<string> {
+  // Try direct fetch as Blob first
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (res.ok) {
+      const blob = await res.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch {
+    // Fallback to Image element canvas
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
@@ -32,7 +48,7 @@ async function loadImageAsBase64(url: string): Promise<string> {
         reject(err);
       }
     };
-    img.onerror = (err) => {
+    img.onerror = () => {
       reject(new Error(`Failed to load image from URL: ${url}`));
     };
     img.src = url;
@@ -140,8 +156,7 @@ export async function generatePdf({
       doc.text(`Page ${i + 1} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
     }
   } else {
-    // --- 2 FRAMES PER PAGE LAYOUT (Side-by-Side or Portrait Stacked) ---
-    // In landscape 2-up: 2 columns side-by-side
+    // --- 2 FRAMES PER PAGE LAYOUT (Side-by-Side) ---
     const totalPages = Math.ceil(frames.length / 2);
     const colWidth = (contentWidth - 10) / 2; // 131.5 mm each column
     const imgHeight = (colWidth * 9) / 16;     // ~74 mm
