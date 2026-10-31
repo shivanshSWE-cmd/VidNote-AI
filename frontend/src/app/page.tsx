@@ -1,21 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ExtractResponse, FrameMetadata, PdfLayoutMode } from '@/types';
-import { extractFrames } from '@/lib/api';
+import { extractFrames, checkHealth, getApiBaseUrl } from '@/lib/api';
 import { generatePdf } from '@/lib/pdf-generator';
 import UrlInput from '@/components/UrlInput';
 import SkeletonGrid from '@/components/SkeletonGrid';
 import FrameGrid from '@/components/FrameGrid';
 import LightboxModal from '@/components/LightboxModal';
 import PdfExportBar from '@/components/PdfExportBar';
-import { Layers, Sparkles, Youtube, FileCheck } from 'lucide-react';
+import BackendConfigModal from '@/components/BackendConfigModal';
+import { Layers, Sparkles, Server, Settings2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function HomePage() {
   const [extractData, setExtractData] = useState<ExtractResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedUrl, setSubmittedUrl] = useState<string>('');
+
+  // Backend connection status & modal
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
+  const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
 
   // Selection & Lightbox State
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -25,6 +30,19 @@ export default function HomePage() {
   // PDF Export Configuration
   const [layoutMode, setLayoutMode] = useState<PdfLayoutMode>('1-up');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const verifyBackend = useCallback(async () => {
+    try {
+      await checkHealth();
+      setBackendStatus('connected');
+    } catch {
+      setBackendStatus('offline');
+    }
+  }, []);
+
+  useEffect(() => {
+    verifyBackend();
+  }, [verifyBackend]);
 
   const handleExtractSubmit = async (url: string, intervalSeconds: number) => {
     setIsLoading(true);
@@ -38,10 +56,14 @@ export default function HomePage() {
       const allIds = new Set(data.frames.map((f) => f.frame_id));
       setSelectedIds(allIds);
       setLastSelectedId(null);
+      setBackendStatus('connected');
     } catch (err: any) {
       console.error('Extraction error:', err);
       setError(err.message || 'An error occurred while processing the video.');
       setExtractData(null);
+      if (err.message?.includes('Cannot connect')) {
+        setBackendStatus('offline');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +78,6 @@ export default function HomePage() {
       if (isShiftKey && lastSelectedId !== null) {
         const start = Math.min(lastSelectedId, frameId);
         const end = Math.max(lastSelectedId, frameId);
-        // Check if target is already selected; if so, select range; else deselect range
         const shouldSelect = !prev.has(frameId);
 
         for (let i = start; i <= end; i++) {
@@ -153,10 +174,29 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-slate-400">
-            <span className="hidden sm:inline-flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Non-Download FFmpeg Pipe
-            </span>
+          <div className="flex items-center gap-3">
+            {/* Backend Connection Status Pill */}
+            <button
+              type="button"
+              onClick={() => setIsConfigOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                backendStatus === 'connected'
+                  ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/40 hover:bg-emerald-900/40'
+                  : backendStatus === 'offline'
+                  ? 'bg-amber-950/40 text-amber-400 border-amber-800/40 hover:bg-amber-900/40'
+                  : 'bg-slate-900 text-slate-400 border-slate-800'
+              }`}
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {backendStatus === 'connected'
+                  ? 'Backend Connected'
+                  : backendStatus === 'offline'
+                  ? 'Backend Offline'
+                  : 'Checking Backend...'}
+              </span>
+              <Settings2 className="w-3 h-3 ml-0.5 opacity-70" />
+            </button>
           </div>
         </div>
       </header>
@@ -172,6 +212,24 @@ export default function HomePage() {
             Extract high-definition slides and key moments every minute without downloading video files. Select frames and export a clean PDF document instantly.
           </p>
         </div>
+
+        {/* Offline Warning Banner */}
+        {backendStatus === 'offline' && (
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="flex items-center justify-between p-3.5 bg-amber-950/30 border border-amber-800/40 rounded-xl text-xs text-amber-300">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Backend service is not detected at <code>{getApiBaseUrl()}</code>. Ensure FastAPI is running locally or configure remote backend.</span>
+              </div>
+              <button
+                onClick={() => setIsConfigOpen(true)}
+                className="underline hover:text-white font-semibold ml-2 shrink-0"
+              >
+                Configure
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* URL Form & Control Panel */}
         <UrlInput onSubmit={handleExtractSubmit} isLoading={isLoading} error={error} />
@@ -216,6 +274,13 @@ export default function HomePage() {
           isGeneratingPdf={isGeneratingPdf}
         />
       )}
+
+      {/* Backend Settings / Connection Modal */}
+      <BackendConfigModal
+        isOpen={isConfigOpen}
+        onClose={() => setIsConfigOpen(false)}
+        onSaved={verifyBackend}
+      />
     </main>
   );
 }
