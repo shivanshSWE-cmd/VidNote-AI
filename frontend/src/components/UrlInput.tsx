@@ -1,20 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Youtube, Sparkles, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { Youtube, Sparkles, AlertCircle, Clock, CheckCircle2, CopyCheck } from 'lucide-react';
 
 interface UrlInputProps {
-  onSubmit: (url: string, intervalSeconds: number) => void;
+  onSubmit: (url: string, intervalSeconds: number, removeDuplicates: boolean) => void;
   isLoading: boolean;
   error: string | null;
 }
 
 const INTERVAL_OPTIONS = [
-  { label: '15 seconds', value: 15 },
-  { label: '30 seconds', value: 30 },
-  { label: '1 minute (Default)', value: 60 },
-  { label: '2 minutes', value: 120 },
-  { label: '5 minutes', value: 300 },
+  { label: '15 seconds (Rapid)', value: 15 },
+  { label: '30 seconds (High Detail)', value: 30 },
+  { label: '1 minute (Default Lecture)', value: 60 },
+  { label: '2 minutes (Standard)', value: 120 },
+  { label: '5 minutes (Overview)', value: 300 },
 ];
 
 const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(\S+)?$/;
@@ -22,6 +22,7 @@ const YOUTUBE_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|
 export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) {
   const [url, setUrl] = useState('');
   const [interval, setInterval] = useState<number>(60);
+  const [removeDuplicates, setRemoveDuplicates] = useState<boolean>(true);
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,12 +49,12 @@ export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) 
     }
 
     setValidationWarning(null);
-    onSubmit(url.trim(), interval);
+    onSubmit(url.trim(), interval, removeDuplicates);
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-8">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="w-full max-w-4xl mx-auto px-4 py-6">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <div className="relative flex flex-col md:flex-row items-stretch gap-3 p-2 bg-[#161E2E] border border-slate-800 rounded-2xl shadow-2xl focus-within:border-indigo-500/60 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all duration-300">
           
           {/* YouTube Icon & Input Field */}
@@ -72,7 +73,7 @@ export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) 
           </div>
 
           {/* Interval Selector */}
-          <div className="relative flex items-center border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-3 min-w-[200px]">
+          <div className="relative flex items-center border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-3 min-w-[210px]">
             <Clock className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
             <select
               value={interval}
@@ -100,7 +101,7 @@ export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) 
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                <span>Extracting...</span>
+                <span>Processing...</span>
               </>
             ) : (
               <>
@@ -109,6 +110,34 @@ export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) 
               </>
             )}
           </button>
+        </div>
+
+        {/* Deduplication & Helper Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1 text-xs">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-slate-300 hover:text-white transition group">
+            <input
+              type="checkbox"
+              checked={removeDuplicates}
+              onChange={(e) => setRemoveDuplicates(e.target.checked)}
+              disabled={isLoading}
+              className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+            />
+            <span className="flex items-center gap-1.5 font-semibold text-indigo-300 group-hover:text-indigo-200">
+              <CopyCheck className="w-3.5 h-3.5 text-indigo-400" />
+              Auto-Remove Duplicate Slides
+            </span>
+            <span className="text-slate-500 hidden sm:inline">(Filters out identical slides held across multiple minutes)</span>
+          </label>
+
+          <div className="flex items-center gap-3 text-slate-400">
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Non-download stream
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> PDF Ready
+            </span>
+          </div>
         </div>
 
         {/* Validation Warning */}
@@ -126,19 +155,6 @@ export default function UrlInput({ onSubmit, isLoading, error }: UrlInputProps) 
             <span>{error}</span>
           </div>
         )}
-
-        {/* Helper info pills */}
-        <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-400 pt-1">
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Non-download stream sampling
-          </span>
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> 16:9 Slide Extraction
-          </span>
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Browser PDF Compilation
-          </span>
-        </div>
       </form>
     </div>
   );

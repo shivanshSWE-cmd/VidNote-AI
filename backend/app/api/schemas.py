@@ -13,6 +13,16 @@ class ExtractRequest(BaseModel):
         description="Sampling interval in seconds between extracted frames (15, 30, 60, 120, 300)",
         json_schema_extra={"example": 60},
     )
+    remove_duplicates: bool = Field(
+        default=True,
+        description="Automatically detect and remove duplicate/repeated presentation slides",
+        json_schema_extra={"example": True},
+    )
+    similarity_threshold: float = Field(
+        default=0.92,
+        description="Visual similarity threshold (0.80 to 0.99) for detecting identical slides",
+        json_schema_extra={"example": 0.92},
+    )
 
 
 class FrameMetadata(BaseModel):
@@ -29,8 +39,9 @@ class ExtractResponse(BaseModel):
     video_title: str = Field(..., description="Metadata title of YouTube video")
     duration_seconds: int = Field(..., description="Total video duration in seconds")
     duration_formatted: str = Field(..., description="Formatted total duration (HH:MM:SS)")
-    total_frames: int = Field(..., description="Total number of extracted frames")
+    total_frames: int = Field(..., description="Total number of unique extracted frames")
     interval_seconds: int = Field(..., description="Sampling interval in seconds used for extraction")
+    duplicates_removed: int = Field(default=0, description="Count of duplicate frames automatically removed")
     frames: List[FrameMetadata] = Field(..., description="Sequential list of frame metadata objects")
 
 

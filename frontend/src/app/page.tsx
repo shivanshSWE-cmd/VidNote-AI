@@ -46,7 +46,11 @@ export default function HomePage() {
     verifyBackend();
   }, [verifyBackend]);
 
-  const handleExtractSubmit = async (url: string, intervalSeconds: number) => {
+  const handleExtractSubmit = async (
+    url: string,
+    intervalSeconds: number,
+    removeDuplicates: boolean = true
+  ) => {
     setIsLoading(true);
     setError(null);
     setSubmittedUrl(url);
@@ -56,16 +60,16 @@ export default function HomePage() {
 
       if (backendStatus === 'connected') {
         try {
-          data = await extractFrames(url, intervalSeconds);
+          data = await extractFrames(url, intervalSeconds, removeDuplicates);
           setExtractionMode('backend');
         } catch (backendErr: any) {
           console.warn('Backend extraction failed, switching to browser mode:', backendErr);
-          data = await extractFramesClientSide(url, intervalSeconds);
+          data = await extractFramesClientSide(url, intervalSeconds, removeDuplicates);
           setExtractionMode('browser');
         }
       } else {
         // Direct Client-Side Browser Extraction (No backend required)
-        data = await extractFramesClientSide(url, intervalSeconds);
+        data = await extractFramesClientSide(url, intervalSeconds, removeDuplicates);
         setExtractionMode('browser');
       }
 
