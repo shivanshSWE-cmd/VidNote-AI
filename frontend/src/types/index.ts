@@ -14,14 +14,12 @@ export interface ExtractResponse {
   duration_formatted: string;
   total_frames: number;
   interval_seconds: number;
-  duplicates_removed?: number;
   frames: FrameMetadata[];
 }
 
 export interface ExtractRequest {
   url: string;
   interval_seconds: number;
-  remove_duplicates?: boolean;
 }
 
 export type PdfLayoutMode = '1-up' | '2-up';

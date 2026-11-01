@@ -22,8 +22,7 @@ export function setApiBaseUrl(url: string): void {
 
 export async function extractFrames(
   url: string,
-  intervalSeconds: number = 60,
-  removeDuplicates: boolean = true
+  intervalSeconds: number = 60
 ): Promise<ExtractResponse> {
   const baseUrl = getApiBaseUrl();
   let response: Response;
@@ -37,7 +36,6 @@ export async function extractFrames(
       body: JSON.stringify({
         url: url.trim(),
         interval_seconds: intervalSeconds,
-        remove_duplicates: removeDuplicates,
       }),
     });
   } catch (netErr: any) {

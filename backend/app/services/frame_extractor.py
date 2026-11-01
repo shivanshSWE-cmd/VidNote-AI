@@ -71,6 +71,7 @@ async def extract_frames_from_stream(
         "-ss", "00:00:00",
         "-i", stream_url,
         "-vf", f"fps=1/{interval_seconds}",
+        "-pix_fmt", "yuvj420p",
         "-q:v", "3",
         "-f", "image2",
         output_pattern

@@ -2,7 +2,7 @@ import shutil
 import yt_dlp
 from fastapi import APIRouter, HTTPException, Request
 
-from app.config import get_ffmpeg_binary, APP_TITLE, FRAMES_DIR
+from app.config import get_ffmpeg_binary, APP_TITLE
 from app.api.schemas import (
     ExtractRequest,
     ExtractResponse,
@@ -17,7 +17,6 @@ from app.utils.validators import (
 )
 from app.services.stream_resolver import resolve_video_stream
 from app.services.frame_extractor import extract_frames_from_stream
-from app.services.deduplicator import deduplicate_frames
 
 router = APIRouter()
 
@@ -50,7 +49,6 @@ def health_check():
 async def extract_frames(payload: ExtractRequest, request: Request):
     """
     Main endpoint accepting YouTube URL and interval to extract frames as static JPEG assets.
-    Automatically filters out duplicate/repeated slide frames when remove_duplicates=True.
     """
     raw_url = payload.url.strip() if payload.url else ""
 
@@ -83,17 +81,6 @@ async def extract_frames(payload: ExtractRequest, request: Request):
         user_agent=stream_info.get("user_agent")
     )
 
-    # 7. Automatically detect and remove duplicate presentation slides
-    duplicates_removed = 0
-    if payload.remove_duplicates and len(frames_data) > 1:
-        job_dir = FRAMES_DIR / job_id
-        frames_data, duplicates_removed = deduplicate_frames(
-            job_dir=job_dir,
-            frames_metadata=frames_data,
-            similarity_threshold=payload.similarity_threshold,
-            delete_duplicates=True
-        )
-
     frames_metadata = [FrameMetadata(**item) for item in frames_data]
 
     return ExtractResponse(
@@ -104,6 +91,5 @@ async def extract_frames(payload: ExtractRequest, request: Request):
         duration_formatted=format_timestamp(duration_secs),
         total_frames=len(frames_metadata),
         interval_seconds=interval,
-        duplicates_removed=duplicates_removed,
         frames=frames_metadata,
     )

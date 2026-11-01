@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ExtractResponse, FrameMetadata } from '@/types';
 import FrameCard from './FrameCard';
-import { CheckSquare, Square, RefreshCw, Film, Clock, Sparkles } from 'lucide-react';
+import { CheckSquare, Square, RefreshCw, Film, Clock } from 'lucide-react';
 
 interface FrameGridProps {
   data: ExtractResponse;
@@ -39,22 +39,14 @@ export default function FrameGrid({
           <h2 className="text-xl md:text-2xl font-bold text-slate-100 truncate">
             {data.video_title}
           </h2>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 pt-1">
+          <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" /> Duration: <strong className="text-slate-200">{data.duration_formatted}</strong>
             </span>
             <span>•</span>
             <span>Interval: <strong className="text-slate-200">{data.interval_seconds}s</strong></span>
             <span>•</span>
-            <span>Unique Slides: <strong className="text-slate-200">{totalCount}</strong></span>
-            {Boolean(data.duplicates_removed && data.duplicates_removed > 0) && (
-              <>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 font-semibold text-[11px]">
-                  <Sparkles className="w-3 h-3" /> {data.duplicates_removed} Duplicates Automatically Removed
-                </span>
-              </>
-            )}
+            <span>Total Frames: <strong className="text-slate-200">{totalCount}</strong></span>
           </div>
         </div>
 
